@@ -68,16 +68,21 @@ Sources: {", ".join(BOOK["sources"])}.
         for chapter in chapters:
             pages.append(chapter["id"])
             quotes = []
+            last_topic = None
             for quote in chapter["quotes"]:
                 kind = quote.get("kind") or "essay"
-                body = escape_mdx(quote["headline"])
+                topic = quote.get("topic") or ""
+                excerpt = quote.get("headline") or quote.get("title") or ""
                 source = escape_attr(quote["source"])
                 href = escape_attr(quote["href"])
                 date = escape_attr(quote.get("date") or "")
                 date_attr = f' date="{date}"' if date else ""
+                if topic and topic != last_topic:
+                    quotes.append(f"### {escape_mdx(topic)}\n\n")
+                    last_topic = topic
                 quotes.append(
                     f'<Note kind="{kind}" source="{source}" href="{href}"{date_attr}>\n'
-                    f"{body}\n"
+                    f"{escape_mdx(excerpt)}\n"
                     f"</Note>\n\n"
                 )
             (OUT / f"{chapter['id']}.mdx").write_text(

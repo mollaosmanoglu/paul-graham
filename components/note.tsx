@@ -84,7 +84,7 @@ export function Note({ kind = 'essay', source, href, date, children }: NoteProps
           <div className="flex min-w-0 items-center">
             {isTweet ? (
               <>
-                <span className="truncate text-[15px] font-bold leading-5 text-fd-foreground">
+                <span className="truncate text-[15px] font-medium leading-5 text-fd-foreground">
                   Paul Graham
                 </span>
                 <Verified />
@@ -93,7 +93,7 @@ export function Note({ kind = 'essay', source, href, date, children }: NoteProps
                 </span>
               </>
             ) : (
-              <span className="truncate text-[15px] font-bold leading-5 text-fd-foreground">
+              <span className="truncate text-[15px] font-medium leading-5 text-fd-foreground">
                 {source}
               </span>
             )}
@@ -114,9 +114,11 @@ export function Note({ kind = 'essay', source, href, date, children }: NoteProps
               )
             )}
           </div>
-          <div className="text-[15px] font-normal leading-5 text-fd-foreground [&_p]:m-0">
-            {children}
-          </div>
+          {children ? (
+            <div className="text-[15px] font-light leading-5 text-[#536471] [&_p]:m-0">
+              {children}
+            </div>
+          ) : null}
         </div>
       </a>
     </article>
