@@ -139,7 +139,7 @@ export function BookChat() {
         render={
           <Button
             variant="default"
-            className="book-chat-trigger fixed top-1/2 right-0 z-40 -translate-y-1/2 rounded-none px-3"
+            className="book-chat-trigger fixed right-0 z-40 rounded-none px-4 max-md:bottom-[max(1rem,env(safe-area-inset-bottom))] max-md:h-11 md:top-1/2 md:-translate-y-1/2"
           />
         }
       >
@@ -147,7 +147,7 @@ export function BookChat() {
       </SheetTrigger>
       <SheetContent
         side="right"
-        className="book-chat-panel gap-0 rounded-none border-0 p-0 shadow-none sm:max-w-md"
+        className="book-chat-panel gap-0 rounded-none border-0 p-0 shadow-none max-sm:w-full sm:max-w-md"
       >
         <SheetHeader>
           <SheetTitle>Ask the notes</SheetTitle>

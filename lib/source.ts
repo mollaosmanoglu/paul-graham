@@ -26,7 +26,7 @@ function groupParts(nodes: Node[]): Node[] {
     if (part) {
       part.children.push(node);
     } else if (node.type === 'page' && node.url === docsRoute) {
-      out.push({ ...node, name: 'Index' });
+      out.push({ ...node, name: 'INDEX' });
     } else {
       out.push(node);
     }

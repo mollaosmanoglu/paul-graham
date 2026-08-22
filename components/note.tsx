@@ -83,7 +83,7 @@ export function Note({ kind = 'essay', source, href, date, children }: NoteProps
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           {isTweet ? (
-            <div className="flex min-w-0 items-center">
+            <div className="flex min-w-0 flex-wrap items-center">
               <span className="truncate text-[15px] font-normal leading-5 text-fd-foreground">
                 Paul Graham
               </span>

@@ -58,7 +58,9 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
   if (!page) notFound();
 
   return {
-    title: page.data.title,
+    title: {
+      absolute: "Paul Graham's Wisdom",
+    },
     description: page.data.description,
     openGraph: {
       images: getPageImageUrl(page).url,

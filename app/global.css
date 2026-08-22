@@ -75,6 +75,7 @@
 html {
   scrollbar-gutter: stable;
   font-weight: 300;
+  -webkit-text-size-adjust: 100%;
 }
 
 /* Book TOC: Fumadocs sizes the sidebar for icon + nested docs. We have neither. */
@@ -95,7 +96,8 @@ html {
   padding-block: 0.35rem;
 }
 
-#nd-sidebar button.w-full {
+#nd-sidebar button.w-full,
+#nd-sidebar a[href='/docs'] {
   font-weight: 400;
   color: color-mix(in oklab, var(--color-fd-foreground) 72%, transparent);
 }
@@ -148,7 +150,23 @@ html > body[data-scroll-locked] {
 }
 
 .book-chat-trigger:active {
-  transform: translateY(-50%) scale(0.97);
+  transform: scale(0.97);
+}
+
+@media (min-width: 768px) {
+  .book-chat-trigger:active {
+    transform: translateY(-50%) scale(0.97);
+  }
+}
+
+@media (max-width: 767px) {
+  #nd-page {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  #nd-sidebar-mobile {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
 .shimmer {
@@ -171,7 +189,6 @@ html > body[data-scroll-locked] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cover-cta,
   .note a,
   .sidebar-twitter,
   .book-chat-panel,
