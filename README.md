@@ -9,8 +9,5 @@ npm run dev
 
 Open http://localhost:3000. The book lives under `/docs`.
 
-Regenerate chapter MDX from `book/data.json`:
-
-```bash
-python3 scripts/build_docs.py
-```
+The approved, source-linked lessons live in `data/lessons.json`. The chapter MDX
+files in `content/docs` are its rendered reading copy.
