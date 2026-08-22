@@ -1,0 +1,71 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+:root {
+  --yc-orange: hsl(24, 100%, 50%);
+  --yc-cream: hsl(60, 28%, 95.1%);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --duration-press: 160ms;
+  --duration-ui: 220ms;
+}
+
+@theme {
+  --color-fd-background: hsl(0, 0%, 100%);
+  --color-fd-foreground: hsl(0, 0%, 0%);
+  --color-fd-muted: hsl(60, 28%, 95.1%);
+  --color-fd-muted-foreground: hsl(0, 0%, 51%);
+  --color-fd-popover: hsl(0, 0%, 100%);
+  --color-fd-popover-foreground: hsl(0, 0%, 0%);
+  --color-fd-card: hsl(0, 0%, 100%);
+  --color-fd-card-foreground: hsl(0, 0%, 0%);
+  --color-fd-border: hsl(0, 0%, 90.2%);
+  --color-fd-primary: hsl(24, 100%, 50%);
+  --color-fd-primary-foreground: hsl(0, 0%, 100%);
+  --color-fd-secondary: hsl(60, 28%, 95.1%);
+  --color-fd-secondary-foreground: hsl(0, 0%, 0%);
+  --color-fd-accent: hsl(60, 28%, 95.1%);
+  --color-fd-accent-foreground: hsl(0, 0%, 0%);
+  --color-fd-ring: hsl(24, 100%, 50%);
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+}
+
+.dark {
+  --color-fd-background: hsl(0, 0%, 0%);
+  --color-fd-foreground: hsl(0, 0%, 100%);
+  --color-fd-muted: hsl(0, 0%, 8%);
+  --color-fd-muted-foreground: hsl(0, 0%, 51%);
+  --color-fd-popover: hsl(0, 0%, 0%);
+  --color-fd-popover-foreground: hsl(0, 0%, 100%);
+  --color-fd-card: hsl(0, 0%, 0%);
+  --color-fd-card-foreground: hsl(0, 0%, 100%);
+  --color-fd-border: hsl(0, 0%, 18%);
+  --color-fd-primary: hsl(24, 100%, 50%);
+  --color-fd-primary-foreground: hsl(0, 0%, 100%);
+  --color-fd-secondary: hsl(0, 0%, 8%);
+  --color-fd-secondary-foreground: hsl(0, 0%, 100%);
+  --color-fd-accent: hsl(0, 0%, 8%);
+  --color-fd-accent-foreground: hsl(0, 0%, 100%);
+  --color-fd-ring: hsl(24, 100%, 50%);
+}
+
+html {
+  scrollbar-gutter: stable;
+  font-weight: 300;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cover-cta {
+    transition: none;
+  }
+}

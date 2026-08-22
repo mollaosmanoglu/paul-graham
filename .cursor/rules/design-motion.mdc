@@ -1,0 +1,14 @@
+---
+description: Apply Luphra design and motion skills when editing the book UI
+globs: book/**/*.{html,css,js}
+alwaysApply: false
+---
+
+Read `.agents/skills/emil-design-eng/SKILL.md` before changing motion or UI polish.
+
+- Use `--ease-out` and `--duration-ui` / `--duration-press` from `book/styles.css`
+- Buttons: `:active { transform: scale(0.97) }` at 160ms ease-out
+- Entrances start at `scale(0.95–0.98)` + `opacity: 0`, never `scale(0)`
+- Do not animate search, ⌘K focus, or sidebar navigation
+- Quote reveals are once-per-element scroll fades, 220ms, transform + opacity only
+- Respect `prefers-reduced-motion`

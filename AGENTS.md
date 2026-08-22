@@ -1,33 +1,23 @@
-> **First-time setup**: Customize this file for your project. Prompt the user to customize this file for their project.
-> For Mintlify product knowledge (components, configuration, writing standards),
-> install the Mintlify skill: `npx skills add https://mintlify.com/docs`
+# Paul Graham book
 
-# Documentation project instructions
+This is a Fumadocs (Next.js) app. Chapters are MDX in `content/docs`. The landing page is `app/(home)/page.tsx`.
 
-## About this project
+Design and motion skills live in `.agents/skills/`. They were copied from `design-luphra` and `Luphra`. Use them when changing the book UI.
 
-- This is a documentation site built on [Mintlify](https://mintlify.com)
-- Pages are MDX files with YAML frontmatter
-- Configuration lives in `docs.json`
-- Use the Mintlify MCP server, `https://mcp.mintlify.com`, to edit content and settings via MCP
-- Use the Mintlify docs MCP server, `https://www.mintlify.com/docs/mcp`, to query information about using Mintlify via MCP
+## Always apply
 
-## Terminology
+- `emil-design-eng` — taste, easing, duration, press feedback, no `scale(0)`, no `transition: all`
+- `apple-design` — respond on press, interruptible motion, reduced motion
+- `find-animation-opportunities` — animate rarely; never animate ⌘K / search / sidebar clicks
+- `animation-vocabulary` — name the motion before inventing new effects
+- `motion` — Motion/CSS springs and performance when JS animation is needed
 
-{/* Add product-specific terms and preferred usage */}
-{/* Example: Use "workspace" not "project", "member" not "user" */}
+## Motion tokens (book)
 
-## Style preferences
+```css
+--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+--duration-press: 160ms;
+--duration-ui: 220ms;
+```
 
-{/* Add any project-specific style rules below */}
-
-- Use active voice and second person ("you")
-- Keep sentences concise — one idea per sentence
-- Use sentence case for headings
-- Bold for UI elements: Click **Settings**
-- Code formatting for file names, commands, paths, and code references
-
-## Content boundaries
-
-{/* Define what should and shouldn't be documented */}
-{/* Example: Don't document internal admin features */}
+Animate `transform` and `opacity` only. Exit faster than enter. Respect `prefers-reduced-motion`.
