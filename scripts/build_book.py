@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Build a lesson book from local essays.jsonl + tweets.jsonl.
 
-Essay quotes are a curated canon taken from reading the core essays.
-Tweets are only short standalone aphorisms that match a chapter.
+Essay quotes start from a curated canon, then a miner pulls more
+standalone PG-shaped sentences from the full corpus. Tweets are
+short standalone aphorisms that match a chapter.
 """
 
 from __future__ import annotations
@@ -10,8 +11,12 @@ from __future__ import annotations
 import html
 import json
 import re
+import sys
 from collections import defaultdict
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from labels import CHAPTER_TOPICS, labeled_topic, load_cache, lookup
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
@@ -740,29 +745,371 @@ CANON: list[tuple[str, str, str, str, str]] = [
         "Fierce nerds are at least moderately smart.",
         "Not all nerds are smart, but the fierce ones are always at least moderately so.",
     ),
+    (
+        "want",
+        "ycombinator",
+        "Motto",
+        "Make something people want.",
+        "That's why our motto is \"Make something people want.\"",
+    ),
+    (
+        "want",
+        "startupideas",
+        "Ideas",
+        "Live in the future, then build what's missing.",
+        "Live in the future, then build what's missing.",
+    ),
+    (
+        "want",
+        "want",
+        "Desire",
+        "You can change what you want to want.",
+        "It's possible to change what you want to want.",
+    ),
+    (
+        "growth",
+        "ramenprofitable",
+        "Ramen",
+        "Ramen profitable means you can live on the company.",
+        "Ramen profitable means a startup makes just enough to pay the founders' living expenses.",
+    ),
+    (
+        "growth",
+        "fundraising",
+        "Ramen",
+        "Once you cross into ramen profitable, everything changes.",
+        "Once you cross into ramen profitable, everything changes.",
+    ),
+    (
+        "maker",
+        "procrastination",
+        "Work",
+        "Good procrastination is avoiding errands.",
+        "Good procrastination is avoiding errands to do real work.",
+    ),
+    (
+        "maker",
+        "top",
+        "Attention",
+        "Don't let the wrong idea sit on top.",
+        "it's a disaster to let the wrong idea become the top one in your mind.",
+    ),
+    (
+        "maker",
+        "selfindulgence",
+        "Time",
+        "Fake work is how you lose time.",
+        "The most dangerous way to lose time is not to spend it having fun, but to spend it doing fake work.",
+    ),
+    (
+        "great-work",
+        "hwh",
+        "Effort",
+        "Great things take hard work.",
+        "if you want to do great things, you'll have to work very hard.",
+    ),
+    (
+        "great-work",
+        "hwh",
+        "Effort",
+        "Ability, practice, and effort.",
+        "There are three ingredients in great work: natural ability, practice, and effort.",
+    ),
+    (
+        "great-work",
+        "early",
+        "Fear",
+        "Fear of lame work holds people back.",
+        "One of the biggest things holding people back from doing great work is the fear of making something lame.",
+    ),
+    (
+        "great-work",
+        "early",
+        "Doing",
+        "Push through the lame stage.",
+        "You have to push through this stage to reach the great work that lies beyond.",
+    ),
+    (
+        "great-work",
+        "own",
+        "Projects",
+        "A project of your own is different work.",
+        "Working on a project of your own is as different from ordinary work as skating is from walking.",
+    ),
+    (
+        "great-work",
+        "work",
+        "Fit",
+        "If it doesn't feel like work, that's a signal.",
+        "If something that seems like work to other people doesn't seem like work to you, that's something you're well suited for.",
+    ),
+    (
+        "great-work",
+        "superlinear",
+        "Returns",
+        "Half as good means no customers.",
+        "If your product is only half as good as your competitor's, you don't get half as many customers.",
+    ),
+    (
+        "founders",
+        "earnest",
+        "Earnestness",
+        "Formidable and earnest is nearly unstoppable.",
+        "when founders are both formidable (another of our words) and earnest, they're as close to unstoppable as you get.",
+    ),
+    (
+        "founders",
+        "word",
+        "Resourcefulness",
+        "Wise people need one word.",
+        "if someone is wise, all you have to do is say one word to them, and they'll understand immediately.",
+    ),
+    (
+        "founders",
+        "determination",
+        "Determination",
+        "Smart is not the deciding factor.",
+        "while it certainly helps to be smart, it's not the deciding factor.",
+    ),
+    (
+        "ideas",
+        "sun",
+        "Insights",
+        "The best insights are general and surprising.",
+        "The most valuable insights are both general and surprising.",
+    ),
+    (
+        "ideas",
+        "smart",
+        "Ideas",
+        "Smart is not the same as new ideas.",
+        "Being very smart was a necessary precondition for having those ideas, but the two are not identical.",
+    ),
+    (
+        "young",
+        "vb",
+        "Time",
+        "If life feels too short for something, drop it.",
+        "If you find yourself thinking that life is too short for something, you should try to eliminate it if you can.",
+    ),
+    (
+        "young",
+        "todo",
+        "Advice",
+        "Don't be a cog.",
+        "don't be a cog.",
+    ),
+    (
+        "young",
+        "lesson",
+        "School",
+        "The damaging lesson was grades.",
+        "The most damaging thing you learned in school wasn't something you learned in any specific class.",
+    ),
+    (
+        "young",
+        "addiction",
+        "Normal",
+        "If you don't seem weird, you're living badly.",
+        "if people don't think you're weird, you're living badly.",
+    ),
+    (
+        "nerds",
+        "nerds",
+        "Popularity",
+        "They want to be smart more than popular.",
+        "They want to be popular, certainly, but they want even more to be smart.",
+    ),
+    (
+        "nerds",
+        "fn",
+        "Fierce",
+        "Fierce nerds are intelligent.",
+        "Another quality you find in most fierce nerds is intelligence.",
+    ),
+    (
+        "nerds",
+        "noob",
+        "Learning",
+        "A noob feeling means you're doing something new.",
+        "there are two sources of feeling like a noob: being stupid, and doing something novel.",
+    ),
+    (
+        "nerds",
+        "noob",
+        "Learning",
+        "Feeling like a noob is a good sign.",
+        "the more you feel like a noob, the better.",
+    ),
+    (
+        "scale",
+        "ds",
+        "Users",
+        "Set them up on the spot.",
+        "When anyone agreed to try Stripe they'd say \"Right then, give me your laptop\" and set them up on the spot.",
+    ),
+    (
+        "scale",
+        "ds",
+        "Users",
+        "Don't email a link. Install it.",
+        "More diffident founders ask \"Will you try our beta?\" and if the answer is yes, they say \"Great, we'll send you a link.\"",
+    ),
+    (
+        "scale",
+        "superlinear",
+        "Unscalable",
+        "Do things that don't scale, then they do.",
+        "In the startup world, the name for this principle is \"do things that don't scale.\"",
+    ),
 ]
 
-# Remove the mistaken maker line I accidentally put in scale — handled below in CANON cleanup
-
-TWEET_KEYWORDS = {
-    "start": ("start a startup", "starting a startup", "just start"),
-    "want": ("people want", "startup idea", "live in the future"),
-    "scale": ("don't scale", "doesn't scale", "recruit users"),
-    "growth": ("growth rate", "default alive", "default dead", "grow fast"),
-    "fundraising": ("fundraising", "raise money", "raising money"),
-    "schlep": ("schlep", "unglamorous"),
-    "founders": ("relentlessly resourceful", "founder mode", "good cofounder", "cofounder"),
-    "maker": ("maker's schedule", "manager's schedule", "meetings are a disaster"),
-    "great-work": ("great work", "do what you love", "what to work on"),
-    "taste": ("good taste", "good design"),
-    "writing": ("write simply", "good writing", "writing is thinking"),
-    "ideas": ("new ideas", "good ideas", "notice anomalies"),
-    "identity": ("identity small", "keep your identity", "labels you have"),
-    "wealth": ("make wealth", "create wealth", "get rich"),
-    "cities": ("startup hub", "great cities", "you should be smarter"),
-    "young": ("when you're young", "wish you'd known", "what you like"),
-    "nerds": ("nerds are", "fierce nerds"),
+CHAPTER_KEYWORDS = {
+    "start": (
+        "start a startup", "starting a startup", "just start",
+        "why to start", "before the startup", "how to start",
+        "starting startups", "how not to die",
+    ),
+    "want": (
+        "startup idea", "startup ideas",
+        "live in the future", "something people want",
+        "problems you have", "organic startup",
+        "make something someone", "make something people",
+        "people actually want", "users actually want",
+    ),
+    "scale": (
+        "don't scale", "doesn't scale", "do things that don't",
+        "recruit users", "unscalable", "recruit users manually",
+        "handholding", "manually",
+    ),
+    "growth": (
+        "growth rate", "default alive", "default dead",
+        "grow fast", "designed to grow", "ramen profitable",
+        "the only essential", "startup = growth",
+    ),
+    "fundraising": (
+        "fundraising", "raise money", "raising money",
+        "convertible note", "convince investors", "venture capital",
+        "investor herd", "angel investor", "investors", "investor",
+        "get acquired",
+    ),
+    "schlep": (
+        "schlep", "unglamorous", "launch fast",
+        "version 1 out", "schlep blindness",
+    ),
+    "founders": (
+        "relentlessly resourceful", "founder mode",
+        "good cofounder", "cofounder", "determination",
+        "earnest", "formidable", "hapless", "founder control",
+        "the right kind of stubborn", "founders", "founder",
+    ),
+    "maker": (
+        "maker's schedule", "manager's schedule",
+        "meetings are a disaster", "a single meeting",
+        "top idea in your mind", "fake work", "good procrastination",
+        "meetings are", "meetings",
+    ),
+    "great-work": (
+        "great work", "do what you love", "what to work on",
+        "work hard", "project of your own", "doesn't seem like work",
+        "early work", "superlinear",
+    ),
+    "taste": (
+        "good taste", "good design", "good art", "copy what you like",
+    ),
+    "writing": (
+        "write simply", "good writing", "writing is thinking",
+        "write well", "an essay", "ordinary words", "write-nots",
+        "ideas into words", "write like you talk", "writing",
+    ),
+    "ideas": (
+        "new ideas", "good ideas", "notice anomalies",
+        "crazy new ideas", "general and surprising",
+        "think for yourself",
+    ),
+    "identity": (
+        "identity small", "keep your identity", "labels you have",
+        "what you can't say", "moral fashion", "being mean",
+        "orthodox privilege",
+    ),
+    "wealth": (
+        "make wealth", "create wealth", "get rich",
+        "how people get rich", "compress your whole working",
+    ),
+    "cities": (
+        "startup hub", "great cities", "you should be smarter",
+        "silicon valley", "ambitious people", "startup hubs",
+    ),
+    "young": (
+        "when you're young", "wish you'd known", "what you like",
+        "life is short", "lesson to unlearn", "don't be a cog",
+        "in high school",
+    ),
+    "nerds": (
+        "nerds are", "fierce nerds", "being a nerd",
+        "why nerds", "being a noob", "nerds", "nerd",
+    ),
 }
+
+TWEET_KEYWORDS = CHAPTER_KEYWORDS
+
+SLUG_CHAPTER = {
+    "start": "start", "before": "start", "notnot": "start", "ycstart": "start",
+    "badeconomy": "start", "mit": "start", "really": "start", "die": "start",
+    "ycombinator": "start", "whyyc": "start", "webstartups": "start",
+    "startupideas": "want", "organic": "want", "users": "want", "want": "want",
+    "ambitious": "want", "bronze": "want", "airbnb": "want", "good": "want",
+    "ds": "scale",
+    "growth": "growth", "aord": "growth", "ramenprofitable": "growth",
+    "pinch": "growth",
+    "fundraising": "fundraising", "hiresfund": "fundraising", "fr": "fundraising",
+    "startupfunding": "fundraising", "convince": "fundraising",
+    "investors": "fundraising", "guidetoinvestors": "fundraising",
+    "herd": "fundraising", "angelinvesting": "fundraising",
+    "venturecapital": "fundraising", "superangels": "fundraising",
+    "invtrend": "fundraising", "equity": "fundraising", "corpdev": "fundraising",
+    "schlep": "schlep", "13sentences": "schlep",
+    "startuplessons": "schlep", "startupmistakes": "schlep",
+    "founders": "founders", "relres": "founders", "foundermode": "founders",
+    "determination": "founders", "persistence": "founders", "word": "founders",
+    "earnest": "founders", "5founders": "founders", "foundersatwork": "founders",
+    "control": "founders", "safe": "founders",
+    "makersschedule": "maker", "top": "maker", "procrastination": "maker",
+    "distraction": "maker", "head": "maker", "selfindulgence": "maker",
+    "greatwork": "great-work", "love": "great-work", "when": "great-work",
+    "own": "great-work", "genius": "great-work", "superlinear": "great-work",
+    "work": "great-work", "early": "great-work", "hwh": "great-work",
+    "gh": "great-work", "todo": "great-work",
+    "taste": "taste", "goodtaste": "taste", "goodart": "taste",
+    "copy": "taste", "desres": "taste",
+    "simply": "writing", "useful": "writing", "writes": "writing",
+    "goodwriting": "writing", "essay": "writing", "best": "writing",
+    "talk": "writing", "speak": "writing", "writing44": "writing",
+    "words": "writing", "read": "writing",
+    "getideas": "ideas", "ideas": "ideas", "newideas": "ideas",
+    "sun": "ideas", "discover": "ideas", "smart": "ideas", "think": "ideas",
+    "identity": "identity", "say": "identity", "conformism": "identity",
+    "orth": "identity", "heresy": "identity", "mean": "identity",
+    "disagree": "identity",
+    "wealth": "wealth", "richnow": "wealth", "earn": "wealth",
+    "gap": "wealth", "ace": "wealth",
+    "cities": "cities", "hubs": "cities", "startuphubs": "cities",
+    "siliconvalley": "cities", "america": "cities", "pgh": "cities",
+    "maybe": "cities", "seesv": "cities",
+    "hs": "young", "college": "young", "do": "young", "lesson": "young",
+    "vb": "young", "addiction": "young",
+    "nerds": "nerds", "fn": "nerds", "noob": "nerds", "gba": "nerds",
+}
+
+SKIP_ESSAY_SLUGS = frozenset({
+    "spam", "better", "ffb", "softwarepatents", "rootsoflisp", "iflisp",
+    "lwba", "progbot", "noop", "weird", "fix", "diff", "hundred",
+    "javacover", "pypar", "polls", "prop62", "real", "nft", "tablets",
+    "segway", "twitter", "langdes", "popular", "lies",
+})
+
+ESSAY_CAP = 22
+TWEET_CAP = 12
 
 MONTHS = {
     "january": "01", "february": "02", "march": "03", "april": "04",
@@ -773,14 +1120,75 @@ MONTHS = {
 SKIP_TWEET = re.compile(
     r"(?i)("
     r"just posted|new essay|someone asked|office hours|"
-    r"yc (is now|batch|cycle|alumni)|"
+    r"yc (is now|batch|cycle|alumni|interview)|"
     r"my son|my kids|\d+ yo|took \d|"
     r"thanks @|walking |ran into|"
     r"#|covid|yahoo|republicans|legalizing|venue|"
     r"i'm trying|i read recently|i hope |i love |"
-    r"wow,|email from|in the uk"
+    r"wow,|email from|in the uk|"
+    r"does anyone|anyone know|anyone still|"
+    r"finished the first|last night|hacker news|"
+    r"winter \d{4}|summer \d{4}|we.re going to|"
+    r"released better|voting ring|gmail|aga while|"
+    r"woke movies|ron conway|infrared|fighter planes"
     r")"
 )
+
+SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
+MONTH_PREFIX = re.compile(
+    r"^(January|February|March|April|May|June|July|August|September|"
+    r"October|November|December)\s+\d{4}\s+"
+)
+PAREN_PREFIX = re.compile(r"^\([^)]{0,160}\)\s+")
+FOOTNOTE = re.compile(r"\[\d+\]")
+SKIP_SENT = re.compile(
+    r"(?i)("
+    r"want to start a startup\?|if you liked this|japanese translation|"
+    r"translated into|click here|this essay|in this essay|"
+    r"y combinator\.\s+(january|february|march|april|may|june|july|"
+    r"august|september|october|november|december)|"
+    r"^notes?\b|thanks to |last night|yesterday|a couple days ago|"
+    r"just posted|figure \d|table \d|don't click|this site isn't|"
+    r"\bdh\d|check your privilege|are you with us|as often as you see|"
+    r"literally a prison|torture is amusing|cubist trick|"
+    r"declare the type|bottom-up programming|scotty|you're kirk|"
+    r"don't fix windows|good pitcher|would, if you're|"
+    r"narrowness of the well|solve \(b\)|pointy-haired|"
+    r"blameless life|spoil your house|bought instagram|"
+    r"ad what most people would agree was absurdum"
+    r")"
+)
+GOLD_SHAPE = re.compile(
+    r"(?i)("
+    r"^the way to |"
+    r"^don't |"
+    r"^never |"
+    r"^always |"
+    r"^it's (better|easier|harder|a mistake|possible|rare) |"
+    r"^better to |"
+    r"^a startup is |"
+    r"^startups (are|have|take|need|die|don't) |"
+    r"^you (can't|can|have to|need to|don't|should|make|won't) |"
+    r"^the (best|only|hardest|most|reason|mistake) |"
+    r"^live in the future|"
+    r"^make something |"
+    r"^keep your |"
+    r"^do (what|things) |"
+    r"^good (procrastination|taste|writing|design) is "
+    r")"
+)
+GENERAL = re.compile(
+    r"(?i)\b("
+    r"startup|startups|founder|founders|idea|ideas|user|users|"
+    r"investor|investors|growth|work|writing|essay|taste|"
+    r"wealth|rich|city|cities|nerd|nerds|identity|schlep|"
+    r"meeting|meetings|ambition|you|your|don't"
+    r")\b"
+)
+CONTRAST = re.compile(
+    r"(?i)\b(but |instead|rather than|the mistake|the problem is|the reason)\b"
+)
+MOTTO = re.compile(r'"([^"]{18,120})"')
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -815,7 +1223,7 @@ def month_label(iso: str | None) -> str:
 
 def tweet_is_lesson(text: str) -> bool:
     t = html.unescape(text).strip()
-    if not (50 <= len(t) <= 200):
+    if not (40 <= len(t) <= 240):
         return False
     if re.search(r"https?://|t\.co/|www\.|@", t):
         return False
@@ -827,13 +1235,15 @@ def tweet_is_lesson(text: str) -> bool:
         return False
     if t.count("I ") + t.count("I'm ") > 1:
         return False
-    return True
+    if not GENERAL.search(t):
+        return False
+    return bool(GOLD_SHAPE.search(t) or CONTRAST.search(t) or re.search(r"(?i)\b(you|your|don't)\b", t))
 
 
 def best_chapter(text: str) -> str | None:
     low = text.lower()
     hits = []
-    for cid, keys in TWEET_KEYWORDS.items():
+    for cid, keys in CHAPTER_KEYWORDS.items():
         score = sum(len(k) for k in keys if k in low)
         if score:
             hits.append((score, cid))
@@ -841,6 +1251,145 @@ def best_chapter(text: str) -> str | None:
         return None
     hits.sort(reverse=True)
     return hits[0][1]
+
+
+SENTENCE_STARTERS = frozenset({
+    "A", "An", "Always", "Better", "Do", "Don't", "For", "Good", "If",
+    "In", "It", "It's", "Keep", "Live", "Make", "Never", "Once", "Startups",
+    "The", "There", "They", "To", "We", "When", "You", "You'll", "You're",
+    "You've",
+})
+
+
+def clean_sentence(text: str) -> str:
+    s = html.unescape(norm(text))
+    s = MONTH_PREFIX.sub("", s)
+    s = PAREN_PREFIX.sub("", s)
+    s = FOOTNOTE.sub("", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    heading = re.match(r"^([A-Z][A-Za-z']{1,20}) ([A-Z].*)$", s)
+    if heading and heading.group(1) not in SENTENCE_STARTERS:
+        s = heading.group(2)
+    return s
+
+
+def make_title(text: str) -> str:
+    first = SENT_SPLIT.split(text, maxsplit=1)[0].strip()
+    if len(first) <= 72:
+        return first
+    cut = first[:69].rsplit(" ", 1)[0]
+    return cut + "…"
+
+
+LABELS: dict[str, dict] = {}
+
+
+def infer_topic(chapter: str, text: str, fallback: str = "") -> str:
+    return labeled_topic(LABELS, chapter, text, fallback)
+
+
+def essay_is_nugget(s: str) -> bool:
+    if not (48 <= len(s) <= 210):
+        return False
+    if not re.search(r"[.!?]$", s):
+        return False
+    if not s[0].isupper():
+        return False
+    if s.startswith((
+        "And ", "But ", "So ", "Which ", "Plus ", "Or ", "Nor ", "Yet ",
+        "Because ", "That ", "That's ", "This ", "These ", "Those ",
+        "Then ", "There ", "I ", "I've ", "I'd ", "When I ",
+    )):
+        return False
+    if re.search(r"https?://|www\.|@\w", s):
+        return False
+    if s.count(",") > 3:
+        return False
+    if s.count("(") != s.count(")"):
+        return False
+    if SKIP_SENT.search(s):
+        return False
+    if s.count(" I ") + s.count(" I'm ") + s.count(" I've ") > 1:
+        return False
+    if not GENERAL.search(s):
+        return False
+    if GOLD_SHAPE.search(s):
+        return True
+    if CONTRAST.search(s) and 55 <= len(s) <= 170 and re.search(r"(?i)\b(you|your|don't)\b", s):
+        return True
+    return False
+
+
+def nugget_score(s: str) -> int:
+    pts = 0
+    if GOLD_SHAPE.search(s):
+        pts += 4
+    if CONTRAST.search(s):
+        pts += 2
+    if re.search(r"(?i)\b(you|your|don't)\b", s):
+        pts += 2
+    if 55 <= len(s) <= 170:
+        pts += 2
+    elif 42 <= len(s) <= 200:
+        pts += 1
+    caps = sum(1 for w in s.split() if w[:1].isupper())
+    if caps > 5:
+        pts -= 2
+    return pts
+
+
+def assign_chapter(text: str, slug: str) -> str | None:
+    keyed = best_chapter(text)
+    preferred = SLUG_CHAPTER.get(slug)
+    if keyed:
+        low = text.lower()
+        strength = sum(len(k) for k in CHAPTER_KEYWORDS[keyed] if k in low)
+        if strength >= 12:
+            return keyed
+        if preferred:
+            return preferred
+        return keyed
+    if preferred and nugget_score(text) >= 6:
+        if preferred == "nerds" and not re.search(
+            r"(?i)\b(nerd|nerds|fierce|noob|unpopular|smart)\b", text
+        ):
+            return None
+        return preferred
+    return None
+
+
+def essay_candidates(essay: dict, min_score: int = 7) -> list[tuple[int, str]]:
+    slug = essay["slug"]
+    if slug in SKIP_ESSAY_SLUGS:
+        return []
+    body = clean_sentence(essay.get("body") or "")
+    out: list[tuple[int, str]] = []
+    seen: set[str] = set()
+    for raw in SENT_SPLIT.split(body):
+        s = clean_sentence(raw)
+        if not essay_is_nugget(s):
+            continue
+        if nugget_score(s) < min_score:
+            continue
+        key = s.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((nugget_score(s), s))
+    for m in MOTTO.finditer(body):
+        motto = clean_sentence(m.group(1))
+        if not motto.endswith((".", "!", "?")):
+            motto += "."
+        if not GOLD_SHAPE.search(motto):
+            continue
+        if not essay_is_nugget(motto):
+            continue
+        key = motto.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((nugget_score(motto) + 2, motto))
+    return out
 
 
 def cap(text: str) -> str:
@@ -851,8 +1400,8 @@ def cap(text: str) -> str:
 
 
 def next_sentence(body: str, excerpt: str) -> str:
-    """If the excerpt is just a short label, pull the sentence after it."""
-    if len(excerpt) >= 48:
+    """If the excerpt is a short label, pull the sentence after it."""
+    if len(excerpt) >= 40 and excerpt.endswith((".", "!", "?")):
         return excerpt
     blob = norm(body)
     idx = blob.lower().find(norm(excerpt).lower())
@@ -860,8 +1409,10 @@ def next_sentence(body: str, excerpt: str) -> str:
         return excerpt
     rest = blob[idx + len(excerpt) :].lstrip()
     nxt = re.split(r"(?<=[.!?])\s+", rest, maxsplit=1)[0].strip()
-    if 24 <= len(nxt) <= 280 and not nxt.startswith("("):
-        return f"{excerpt.rstrip('.')} {nxt}" if excerpt.endswith(".") else f"{excerpt} {nxt}"
+    if 24 <= len(nxt) <= 180 and nxt[:1].isupper() and not nxt.startswith("("):
+        joined = f"{excerpt} {nxt}" if excerpt.endswith((".", "!", "?")) else f"{excerpt.rstrip('.')} {nxt}"
+        if len(joined) <= 220:
+            return joined
     return excerpt
 
 
@@ -892,10 +1443,13 @@ CHAPTER_TOPIC = {ch["id"]: ch["title"] for ch in CHAPTERS}
 
 
 def main() -> None:
+    global LABELS
+    LABELS = load_cache()
     essays = {e["slug"]: e for e in load_jsonl(DATA / "essays.jsonl")}
     tweets = load_jsonl(DATA / "tweets.jsonl")
     buckets: dict[str, list[dict]] = defaultdict(list)
     used: set[str] = set()
+    canon_keys: set[str] = set()
     missing = 0
 
     for chapter, slug, topic, title, excerpt in CANON:
@@ -912,9 +1466,10 @@ def main() -> None:
         if key in used:
             continue
         used.add(key)
+        canon_keys.add(key)
         buckets[chapter].append(
             quote(
-                topic=topic,
+                topic=infer_topic(chapter, excerpt, topic),
                 title=title,
                 excerpt=next_sentence(essay["body"], excerpt),
                 source=essay["title"],
@@ -924,7 +1479,76 @@ def main() -> None:
             )
         )
 
-    tweet_counts: dict[str, int] = defaultdict(int)
+    mined_counts: dict[str, int] = defaultdict(int)
+    mined: list[tuple[int, str, dict, str]] = []
+    for essay in essays.values():
+        for score, excerpt in essay_candidates(essay):
+            dest = assign_chapter(excerpt, essay["slug"])
+            if not dest:
+                continue
+            key = excerpt.lower()
+            if key in used:
+                continue
+            mined.append((score, dest, essay, excerpt))
+    mined.sort(reverse=True, key=lambda row: (row[0], -len(row[3])))
+    for score, dest, essay, excerpt in mined:
+        key = excerpt.lower()
+        if key in used:
+            continue
+        if mined_counts[dest] >= ESSAY_CAP:
+            continue
+        used.add(key)
+        mined_counts[dest] += 1
+        buckets[dest].append(
+            quote(
+                topic=infer_topic(dest, excerpt),
+                title=make_title(excerpt),
+                excerpt=excerpt,
+                source=essay["title"],
+                href=essay["url"],
+                kind="essay",
+                date=essay_date(essay["body"]),
+            )
+        )
+
+    thin = {
+        ch["id"]
+        for ch in CHAPTERS
+        if sum(1 for q in buckets[ch["id"]] if q["kind"] == "essay") < 16
+    }
+    if thin:
+        extra: list[tuple[int, str, dict, str]] = []
+        for essay in essays.values():
+            for score, excerpt in essay_candidates(essay, min_score=6):
+                dest = assign_chapter(excerpt, essay["slug"])
+                if dest not in thin:
+                    continue
+                key = excerpt.lower()
+                if key in used:
+                    continue
+                extra.append((score, dest, essay, excerpt))
+        extra.sort(reverse=True, key=lambda row: (row[0], -len(row[3])))
+        for score, dest, essay, excerpt in extra:
+            key = excerpt.lower()
+            if key in used:
+                continue
+            have = sum(1 for q in buckets[dest] if q["kind"] == "essay")
+            if have >= 16:
+                continue
+            used.add(key)
+            buckets[dest].append(
+                quote(
+                    topic=infer_topic(dest, excerpt),
+                    title=make_title(excerpt),
+                    excerpt=excerpt,
+                    source=essay["title"],
+                    href=essay["url"],
+                    kind="essay",
+                    date=essay_date(essay["body"]),
+                )
+            )
+
+    tweet_pool: list[tuple[int, str, dict, str]] = []
     for tweet in tweets:
         if tweet.get("type") != "original":
             continue
@@ -932,19 +1556,26 @@ def main() -> None:
         if not tweet_is_lesson(text):
             continue
         dest = best_chapter(text)
-        if not dest or tweet_counts[dest] >= 6:
+        if not dest:
             continue
         key = text.lower()
         if key in used:
             continue
+        tweet_pool.append((nugget_score(text), dest, tweet, text))
+    tweet_pool.sort(reverse=True, key=lambda row: (row[0], -len(row[3])))
+    tweet_counts: dict[str, int] = defaultdict(int)
+    for score, dest, tweet, text in tweet_pool:
+        key = text.lower()
+        if key in used:
+            continue
+        if tweet_counts[dest] >= TWEET_CAP:
+            continue
         used.add(key)
         tweet_counts[dest] += 1
-        first = re.split(r"(?<=[.!?])\s+", text, maxsplit=1)[0].strip()
-        title = first if len(first) <= 90 else text[:87].rsplit(" ", 1)[0] + "…"
         buckets[dest].append(
             quote(
-                topic="Notes",
-                title=title,
+                topic=infer_topic(dest, text),
+                title=make_title(text),
                 excerpt=text,
                 source="@paulg",
                 href=tweet.get("url") or f"https://x.com/paulg/status/{tweet['id']}",
@@ -955,15 +1586,29 @@ def main() -> None:
 
     book_chapters = []
     for i, ch in enumerate(CHAPTERS, 1):
-        essays_q = [q for q in buckets[ch["id"]] if q["kind"] == "essay"]
-        tweets_q = [q for q in buckets[ch["id"]] if q["kind"] == "tweet"]
+        cid = ch["id"]
+        order = CHAPTER_TOPICS[cid]
+        quotes = []
+        for q in buckets[cid]:
+            key = q["headline"].lower()
+            hit = lookup(LABELS, cid, q["headline"])
+            if hit and hit.get("is_lesson") is False and key not in canon_keys:
+                continue
+            q["topic"] = infer_topic(cid, q["headline"], q.get("topic") or "")
+            quotes.append(q)
+        quotes.sort(
+            key=lambda q: (
+                order.index(q["topic"]) if q["topic"] in order else len(order),
+                0 if q["kind"] == "essay" else 1,
+            )
+        )
         book_chapters.append(
             {
                 "num": f"{i:02d}",
-                "id": ch["id"],
+                "id": cid,
                 "section": ch["section"],
                 "title": ch["title"],
-                "quotes": essays_q + tweets_q,
+                "quotes": quotes,
             }
         )
 

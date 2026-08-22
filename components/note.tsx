@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import type { ReactNode } from 'react';
+import { cn } from '@/lib/cn';
 
 const MONTHS = [
   'Jan',
@@ -80,44 +81,48 @@ export function Note({ kind = 'essay', source, href, date, children }: NoteProps
             />
           )}
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex min-w-0 items-center">
-            {isTweet ? (
-              <>
-                <span className="truncate text-[15px] font-normal leading-5 text-fd-foreground">
-                  Paul Graham
-                </span>
-                <Verified />
-                <span className="ml-1 truncate text-[15px] leading-5 text-fd-muted-foreground">
-                  {source}
-                </span>
-              </>
-            ) : (
+        <div className="flex min-w-0 flex-1 flex-col">
+          {isTweet ? (
+            <div className="flex min-w-0 items-center">
               <span className="truncate text-[15px] font-normal leading-5 text-fd-foreground">
+                Paul Graham
+              </span>
+              <Verified />
+              <span className="ml-1 truncate text-[15px] leading-5 text-fd-muted-foreground">
                 {source}
               </span>
-            )}
-            {when ? (
-              <>
-                <span className="shrink-0 px-1 text-[15px] leading-5 text-fd-muted-foreground">
-                  ·
-                </span>
-                <span className="shrink-0 text-[15px] leading-5 text-fd-muted-foreground">
-                  {when}
-                </span>
-              </>
-            ) : (
-              !isTweet && (
-                <span className="ml-1 truncate text-[15px] leading-5 text-fd-muted-foreground">
-                  paulgraham.com
-                </span>
-              )
-            )}
-          </div>
+              {when ? (
+                <>
+                  <span className="shrink-0 px-1 text-[15px] leading-5 text-fd-muted-foreground">
+                    ·
+                  </span>
+                  <span className="shrink-0 text-[15px] leading-5 text-fd-muted-foreground">
+                    {when}
+                  </span>
+                </>
+              ) : null}
+            </div>
+          ) : null}
           {children ? (
-            <div className="note-quote text-[15px] font-normal leading-6 text-fd-foreground [&_p]:m-0 [&_p]:text-fd-foreground">
+            <div
+              className={cn(
+                'note-quote text-[15px] font-normal leading-6 text-fd-foreground [&_p]:m-0 [&_p]:text-fd-foreground',
+                isTweet && 'mt-2',
+              )}
+            >
               {children}
             </div>
+          ) : null}
+          {!isTweet ? (
+            <p
+              className={cn(
+                'm-0 truncate text-[13px] font-normal leading-5 text-fd-muted-foreground',
+                children && 'mt-1',
+              )}
+            >
+              {source}
+              {when ? ` · ${when}` : ' · paulgraham.com'}
+            </p>
           ) : null}
         </div>
       </a>
