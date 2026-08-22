@@ -78,7 +78,7 @@ html {
 }
 
 #nd-sidebar button.w-full {
-  font-weight: 600;
+  font-weight: 400;
   color: color-mix(in oklab, var(--color-fd-foreground) 72%, transparent);
 }
 
@@ -91,17 +91,28 @@ html > body[data-scroll-locked] {
   --removed-body-scroll-bar-size: 0px !important;
 }
 
-#nd-page article h3 {
+#nd-page .prose > h3 {
   margin-top: 2rem;
   margin-bottom: 0.5rem;
-  font-size: 1.25rem;
-  font-weight: 500;
+  font-size: 0.9375rem;
+  font-weight: 400;
   line-height: 1.25;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
-#nd-page article h3:first-child {
+#nd-page .prose > h3 a {
+  font-weight: inherit;
+  color: inherit;
+}
+
+#nd-page .prose > h3:first-child {
   margin-top: 0;
+}
+
+.note-quote,
+.note-quote p {
+  color: var(--color-fd-foreground);
+  font-weight: 400;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -54,7 +54,7 @@ export function Note({ kind = 'essay', source, href, date, children }: NoteProps
   const isTweet = kind === 'tweet';
 
   return (
-    <article className="note not-prose border-b border-[#eff3f4] py-3 first:pt-0">
+    <article className="note not-prose border-b border-fd-border py-3 first:pt-0">
       <a
         href={href}
         target="_blank"
@@ -84,38 +84,38 @@ export function Note({ kind = 'essay', source, href, date, children }: NoteProps
           <div className="flex min-w-0 items-center">
             {isTweet ? (
               <>
-                <span className="truncate text-[15px] font-medium leading-5 text-fd-foreground">
+                <span className="truncate text-[15px] font-normal leading-5 text-fd-foreground">
                   Paul Graham
                 </span>
                 <Verified />
-                <span className="ml-1 truncate text-[15px] leading-5 text-[#536471]">
+                <span className="ml-1 truncate text-[15px] leading-5 text-fd-muted-foreground">
                   {source}
                 </span>
               </>
             ) : (
-              <span className="truncate text-[15px] font-medium leading-5 text-fd-foreground">
+              <span className="truncate text-[15px] font-normal leading-5 text-fd-foreground">
                 {source}
               </span>
             )}
             {when ? (
               <>
-                <span className="shrink-0 px-1 text-[15px] leading-5 text-[#536471]">
+                <span className="shrink-0 px-1 text-[15px] leading-5 text-fd-muted-foreground">
                   ·
                 </span>
-                <span className="shrink-0 text-[15px] leading-5 text-[#536471]">
+                <span className="shrink-0 text-[15px] leading-5 text-fd-muted-foreground">
                   {when}
                 </span>
               </>
             ) : (
               !isTweet && (
-                <span className="ml-1 truncate text-[15px] leading-5 text-[#536471]">
+                <span className="ml-1 truncate text-[15px] leading-5 text-fd-muted-foreground">
                   paulgraham.com
                 </span>
               )
             )}
           </div>
           {children ? (
-            <div className="text-[15px] font-light leading-5 text-[#536471] [&_p]:m-0">
+            <div className="note-quote text-[15px] font-normal leading-6 text-fd-foreground [&_p]:m-0 [&_p]:text-fd-foreground">
               {children}
             </div>
           ) : null}
