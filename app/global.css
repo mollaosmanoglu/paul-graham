@@ -65,7 +65,13 @@ html > body[data-scroll-locked] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cover-cta {
+  .cover-cta,
+  .note a,
+  .sidebar-twitter {
     transition: none;
+  }
+
+  .sidebar-twitter:active {
+    transform: none;
   }
 }

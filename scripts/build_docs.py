@@ -21,12 +21,21 @@ def escape_mdx(text: str) -> str:
     )
 
 
+def escape_attr(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+        .replace('"', "&quot;")
+        .replace("{", "&#123;")
+        .replace("}", "&#125;")
+    )
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for stale in OUT.glob("*.mdx"):
         stale.unlink()
 
-    pages: list[str] = ["index"]
+    pages: list[str] = ["!index"]
     by_section: OrderedDict[str, list[dict]] = OrderedDict()
     for chapter in BOOK["chapters"]:
         by_section.setdefault(chapter["section"], []).append(chapter)
@@ -51,11 +60,17 @@ Sources: {", ".join(BOOK["sources"])}.
             pages.append(chapter["id"])
             quotes = []
             for quote in chapter["quotes"]:
+                kind = quote.get("kind") or "essay"
                 body = escape_mdx(quote["headline"])
-                source = escape_mdx(quote["source"])
-                href = quote["href"]
-                date = f" · {quote['date']}" if quote.get("date") else ""
-                quotes.append(f"> {body}\n>\n> [{source}]({href}){date}\n\n")
+                source = escape_attr(quote["source"])
+                href = escape_attr(quote["href"])
+                date = escape_attr(quote.get("date") or "")
+                date_attr = f' date="{date}"' if date else ""
+                quotes.append(
+                    f'<Note kind="{kind}" source="{source}" href="{href}"{date_attr}>\n'
+                    f"{body}\n"
+                    f"</Note>\n\n"
+                )
             (OUT / f"{chapter['id']}.mdx").write_text(
                 f"""---
 title: {chapter["title"]}
