@@ -77,6 +77,11 @@ html {
   padding-block: 0.35rem;
 }
 
+#nd-sidebar button.w-full {
+  font-weight: 600;
+  color: color-mix(in oklab, var(--color-fd-foreground) 72%, transparent);
+}
+
 #nd-sidebar p.mt-6 {
   margin-top: 1rem;
 }

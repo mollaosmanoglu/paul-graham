@@ -40,6 +40,13 @@ def main() -> None:
     for chapter in BOOK["chapters"]:
         by_section.setdefault(chapter["section"], []).append(chapter)
 
+    index_parts = []
+    for section, chapters in by_section.items():
+        links = "\n".join(
+            f"- [{chapter['title']}](/docs/{chapter['id']})" for chapter in chapters
+        )
+        index_parts.append(f"## {section}\n\n{links}\n")
+
     (OUT / "index.mdx").write_text(
         f"""---
 title: {BOOK["title"]}
@@ -51,6 +58,8 @@ description: {BOOK["dek"]}
 {BOOK["disclaimer"]}
 
 Sources: {", ".join(BOOK["sources"])}.
+
+{"\n".join(index_parts)}
 """
     )
 
