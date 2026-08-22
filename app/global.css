@@ -59,6 +59,28 @@ html {
   font-weight: 300;
 }
 
+/* Book TOC: Fumadocs sizes the sidebar for icon + nested docs. We have neither. */
+#nd-docs-layout:has(#nd-sidebar) {
+  --fd-sidebar-width: 240px;
+}
+
+#nd-sidebar {
+  font-size: 15px;
+}
+
+#nd-sidebar .p-4 {
+  padding: 0.75rem;
+}
+
+#nd-sidebar a {
+  font-weight: 400;
+  padding-block: 0.35rem;
+}
+
+#nd-sidebar p.mt-6 {
+  margin-top: 1rem;
+}
+
 html > body[data-scroll-locked] {
   margin-right: 0px !important;
   --removed-body-scroll-bar-size: 0px !important;
