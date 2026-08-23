@@ -129,6 +129,59 @@ html > body[data-scroll-locked] {
   margin-top: 0;
 }
 
+.index-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.15rem;
+  margin: 0 0 2rem;
+}
+
+.index-intro-photo {
+  flex: 0 0 6.5rem;
+  width: 6.5rem;
+  height: 8rem;
+  overflow: hidden;
+}
+
+.index-intro-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  max-width: none;
+  object-fit: cover;
+  object-position: 38% 12%;
+}
+
+.index-intro-copy {
+  min-width: 0;
+  flex: 1;
+  font-size: 1rem;
+  line-height: 1.7;
+  font-weight: 300;
+}
+
+.index-intro-copy p {
+  margin: 0 0 0.45em;
+}
+
+.index-intro-copy p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 639px) {
+  .index-intro {
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .index-intro-photo {
+    flex-basis: 5.25rem;
+    width: 5.25rem;
+    height: 6.5rem;
+  }
+}
+
 .note-quote,
 .note-quote p {
   color: var(--color-fd-foreground);

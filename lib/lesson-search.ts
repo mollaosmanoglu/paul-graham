@@ -196,6 +196,17 @@ export function formatLessonContext(hits: Array<Hit | CorpusHit>) {
     .join('\n\n');
 }
 
+export function formatBookContext() {
+  return book.chapters
+    .map((chapter) => {
+      const lines = chapter.quotes
+        .map((quote) => `${quote.headline}\n— ${quote.source}`)
+        .join('\n\n');
+      return `## ${chapter.section} / ${chapter.title}\n\n${lines}`;
+    })
+    .join('\n\n');
+}
+
 export function answerFromBook(question: string) {
   const hits = findLessons(question, 1);
   const best = hits[0];

@@ -114,6 +114,15 @@ export function BookChat() {
   const [thoughtMs, setThoughtMs] = useState<number | null>(null);
   const thoughtStarted = useRef<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function focusAsk() {
+    inputRef.current?.focus();
+  }
+
+  useEffect(() => {
+    if (open) focusAsk();
+  }, [open]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' });
@@ -125,9 +134,11 @@ export function BookChat() {
 
     const userId = crypto.randomUUID();
     const assistantId = crypto.randomUUID();
+    const history = messages.map(({ role, content }) => ({ role, content }));
     setValue('');
     setMessages((current) => [...current, { id: userId, role: 'user', content: message }]);
     setPending(true);
+    requestAnimationFrame(focusAsk);
     thoughtStarted.current = Date.now();
     setThoughtMs(null);
 
@@ -135,7 +146,7 @@ export function BookChat() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, history }),
       });
 
       if (!response.ok || !response.body) {
@@ -206,6 +217,7 @@ export function BookChat() {
         thoughtStarted.current = null;
       }
       setPending(false);
+      requestAnimationFrame(focusAsk);
     }
   }
 
@@ -319,12 +331,12 @@ export function BookChat() {
             }}
           >
             <Input
+              ref={inputRef}
               value={value}
               onChange={(event) => setValue(event.target.value)}
               placeholder="Ask about a lesson"
               aria-label="Ask about a lesson"
               className="rounded-none"
-              disabled={pending}
             />
             <Button
               type="submit"

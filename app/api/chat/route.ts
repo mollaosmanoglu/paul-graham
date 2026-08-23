@@ -1,10 +1,12 @@
-import { findLessons, formatLessonContext } from '@/lib/lesson-search';
+import { formatBookContext } from '@/lib/lesson-search';
 
-const SYSTEM = `You answer questions about Paul Graham using only the notes provided.
-Speak plainly. Quote him when you can. Cite the essay or tweet.
-Write markdown: short paragraphs, **bold** for his wording, lists when listing.
-Do not wrap lines in the middle of a sentence.
-If the notes do not cover the question, say so. Do not invent essays.`;
+const NOTES = formatBookContext();
+
+const SYSTEM = `You talk about Paul Graham. Use his notes below when they fit. Quote him and cite the essay.
+Think for yourself: expand, connect, and answer even when the notes are thin. Do not refuse. Do not say the notes don't cover something.
+Write markdown — short paragraphs, **bold** for his wording, lists when listing.
+
+${NOTES}`;
 
 const DEFAULT_MODEL = process.env.OPENROUTER_MODEL ?? 'google/gemini-3.7-flash';
 const FALLBACK_MODEL = process.env.OPENROUTER_FALLBACK_MODEL ?? 'google/gemini-3.5-flash';
@@ -15,7 +17,25 @@ function publicError(status?: number) {
   return 'Could not reach the notes. Try again.';
 }
 
-async function complete(key: string, model: string, content: string, signal: AbortSignal) {
+type Turn = { role: 'user' | 'assistant'; content: string };
+
+function priorTurns(value: unknown): Turn[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Turn => {
+      if (!item || typeof item !== 'object') return false;
+      const turn = item as { role?: unknown; content?: unknown };
+      return (
+        (turn.role === 'user' || turn.role === 'assistant') &&
+        typeof turn.content === 'string' &&
+        turn.content.trim().length > 0
+      );
+    })
+    .slice(-12)
+    .map((item) => ({ role: item.role, content: item.content.trim() }));
+}
+
+async function complete(key: string, model: string, messages: Turn[], signal: AbortSignal) {
   return fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -29,17 +49,17 @@ async function complete(key: string, model: string, content: string, signal: Abo
       stream: true,
       reasoning: { effort: 'minimal' },
       provider: { sort: 'latency' },
-      messages: [
-        { role: 'system', content: SYSTEM },
-        { role: 'user', content },
-      ],
+      messages: [{ role: 'system', content: SYSTEM }, ...messages],
     }),
     signal,
   });
 }
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => null)) as { message?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as {
+    message?: unknown;
+    history?: unknown;
+  } | null;
   const message = typeof body?.message === 'string' ? body.message.trim() : '';
   if (!message) {
     return new Response(JSON.stringify({ error: 'Say something first.' }), { status: 400 });
@@ -53,25 +73,22 @@ export async function POST(request: Request) {
     });
   }
 
-  const notes = formatLessonContext(findLessons(message));
-  const content = notes
-    ? `Notes:\n\n${notes}\n\nQuestion: ${message}`
-    : `No matching notes were found.\n\nQuestion: ${message}`;
+  const messages: Turn[] = [...priorTurns(body?.history), { role: 'user', content: message }];
 
   const signal = AbortSignal.timeout(90_000);
-  let upstream = await complete(key, model, content, signal).catch(() => null);
+  let upstream = await complete(key, model, messages, signal).catch(() => null);
 
   if (!upstream || !upstream.ok) {
     await upstream?.body?.cancel().catch(() => undefined);
     if (upstream && RETRY_STATUSES.has(upstream.status)) {
       await new Promise((resolve) => setTimeout(resolve, 400));
-      upstream = await complete(key, model, content, signal).catch(() => null);
+      upstream = await complete(key, model, messages, signal).catch(() => null);
     }
   }
 
   if ((!upstream || !upstream.ok) && FALLBACK_MODEL !== model) {
     await upstream?.body?.cancel().catch(() => undefined);
-    upstream = await complete(key, FALLBACK_MODEL, content, signal).catch(() => null);
+    upstream = await complete(key, FALLBACK_MODEL, messages, signal).catch(() => null);
   }
 
   if (!upstream?.ok || !upstream.body) {
