@@ -1,12 +1,8 @@
-import { formatBookContext } from '@/lib/lesson-search';
+import { findLessons, formatLessonContext } from '@/lib/lesson-search';
 
-const NOTES = formatBookContext();
-
-const SYSTEM = `You talk about Paul Graham. Use his notes below when they fit. Quote him and cite the essay.
+const SYSTEM = `You talk about Paul Graham. Use the supplied source excerpts when they fit. Quote him and cite the essay or post.
 Think for yourself: expand, connect, and answer even when the notes are thin. Do not refuse. Do not say the notes don't cover something.
-Write markdown — short paragraphs, **bold** for his wording, lists when listing.
-
-${NOTES}`;
+Write markdown — short paragraphs, **bold** for his wording, lists when listing.`;
 
 const DEFAULT_MODEL = process.env.OPENROUTER_MODEL ?? 'google/gemini-3.7-flash';
 const FALLBACK_MODEL = process.env.OPENROUTER_FALLBACK_MODEL ?? 'google/gemini-3.5-flash';
@@ -35,7 +31,13 @@ function priorTurns(value: unknown): Turn[] {
     .map((item) => ({ role: item.role, content: item.content.trim() }));
 }
 
-async function complete(key: string, model: string, messages: Turn[], signal: AbortSignal) {
+async function complete(
+  key: string,
+  model: string,
+  messages: Turn[],
+  sourceContext: string,
+  signal: AbortSignal,
+) {
   return fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -49,7 +51,10 @@ async function complete(key: string, model: string, messages: Turn[], signal: Ab
       stream: true,
       reasoning: { effort: 'minimal' },
       provider: { sort: 'latency' },
-      messages: [{ role: 'system', content: SYSTEM }, ...messages],
+      messages: [
+        { role: 'system', content: `${SYSTEM}\n\nSource excerpts:\n${sourceContext}` },
+        ...messages,
+      ],
     }),
     signal,
   });
@@ -74,21 +79,22 @@ export async function POST(request: Request) {
   }
 
   const messages: Turn[] = [...priorTurns(body?.history), { role: 'user', content: message }];
+  const sourceContext = formatLessonContext(findLessons(message, 16));
 
   const signal = AbortSignal.timeout(90_000);
-  let upstream = await complete(key, model, messages, signal).catch(() => null);
+  let upstream = await complete(key, model, messages, sourceContext, signal).catch(() => null);
 
   if (!upstream || !upstream.ok) {
     await upstream?.body?.cancel().catch(() => undefined);
     if (upstream && RETRY_STATUSES.has(upstream.status)) {
       await new Promise((resolve) => setTimeout(resolve, 400));
-      upstream = await complete(key, model, messages, signal).catch(() => null);
+      upstream = await complete(key, model, messages, sourceContext, signal).catch(() => null);
     }
   }
 
   if ((!upstream || !upstream.ok) && FALLBACK_MODEL !== model) {
     await upstream?.body?.cancel().catch(() => undefined);
-    upstream = await complete(key, FALLBACK_MODEL, messages, signal).catch(() => null);
+    upstream = await complete(key, FALLBACK_MODEL, messages, sourceContext, signal).catch(() => null);
   }
 
   if (!upstream?.ok || !upstream.body) {

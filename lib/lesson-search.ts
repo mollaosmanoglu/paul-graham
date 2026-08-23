@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import book from '@/book/data.json';
+import book from '@/data/lessons.json';
 
 type Quote = {
   topic: string;
@@ -70,7 +70,7 @@ function tokens(text: string) {
 }
 
 function archiveEnabled() {
-  return process.env.BOOK_CHAT_ARCHIVE === '1';
+  return process.env.BOOK_CHAT_ARCHIVE !== '0';
 }
 
 function readJsonLines<T>(name: string): T[] {
@@ -146,7 +146,9 @@ function indexArchive() {
     }
 
     for (const tweet of readJsonLines<Tweet>('tweets.jsonl')) {
-      if (tweet.type !== 'original' || !tweet.text.trim()) continue;
+      // `text` is Graham's own contribution for originals, replies, quotes,
+      // and reposts with comment. Retain all of it in the complete archive.
+      if (!tweet.text.trim()) continue;
       indexHit({
         topic: 'Archive',
         title: '@paulg',

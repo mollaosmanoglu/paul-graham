@@ -27,3 +27,6 @@ next-env.d.ts
 
 # local essay/tweet corpus
 data/
+!data/
+data/*
+!data/lessons.json
