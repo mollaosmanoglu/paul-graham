@@ -2,29 +2,21 @@ import { findLessons, formatLessonContext } from '@/lib/lesson-search';
 
 const SYSTEM = `You answer questions about Paul Graham using only the notes provided.
 Speak plainly. Quote him when you can. Cite the essay or tweet.
+Write markdown: short paragraphs, **bold** for his wording, lists when listing.
+Do not wrap lines in the middle of a sentence.
 If the notes do not cover the question, say so. Do not invent essays.`;
 
-export async function POST(request: Request) {
-  const body = (await request.json().catch(() => null)) as { message?: unknown } | null;
-  const message = typeof body?.message === 'string' ? body.message.trim() : '';
-  if (!message) {
-    return new Response(JSON.stringify({ error: 'Say something first.' }), { status: 400 });
-  }
+const DEFAULT_MODEL = process.env.OPENROUTER_MODEL ?? 'google/gemini-3.7-flash';
+const FALLBACK_MODEL = process.env.OPENROUTER_FALLBACK_MODEL ?? 'google/gemini-3.5-flash';
+const RETRY_STATUSES = new Set([408, 409, 429, 500, 502, 503, 504]);
 
-  const key = process.env.OPENROUTER_API_KEY;
-  const model = process.env.OPENROUTER_MODEL ?? 'stealth/ox-alpha';
-  if (!key) {
-    return new Response(JSON.stringify({ error: 'Missing OPENROUTER_API_KEY.' }), {
-      status: 500,
-    });
-  }
+function publicError(status?: number) {
+  if (status === 429) return 'Too many questions at once. Wait a moment.';
+  return 'Could not reach the notes. Try again.';
+}
 
-  const notes = formatLessonContext(findLessons(message));
-  const content = notes
-    ? `Notes:\n\n${notes}\n\nQuestion: ${message}`
-    : `No matching notes were found.\n\nQuestion: ${message}`;
-
-  const upstream = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+async function complete(key: string, model: string, content: string, signal: AbortSignal) {
+  return fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${key}`,
@@ -35,21 +27,57 @@ export async function POST(request: Request) {
     body: JSON.stringify({
       model,
       stream: true,
+      reasoning: { effort: 'minimal' },
+      provider: { sort: 'latency' },
       messages: [
         { role: 'system', content: SYSTEM },
         { role: 'user', content },
       ],
     }),
+    signal,
   });
+}
 
-  if (!upstream.ok || !upstream.body) {
-    const data = (await upstream.json().catch(() => null)) as {
-      error?: { message?: string };
-    } | null;
-    return new Response(
-      JSON.stringify({ error: data?.error?.message ?? 'OpenRouter request failed.' }),
-      { status: 502 },
-    );
+export async function POST(request: Request) {
+  const body = (await request.json().catch(() => null)) as { message?: unknown } | null;
+  const message = typeof body?.message === 'string' ? body.message.trim() : '';
+  if (!message) {
+    return new Response(JSON.stringify({ error: 'Say something first.' }), { status: 400 });
+  }
+
+  const key = process.env.OPENROUTER_API_KEY;
+  const model = DEFAULT_MODEL;
+  if (!key) {
+    return new Response(JSON.stringify({ error: 'Ask is not configured yet.' }), {
+      status: 500,
+    });
+  }
+
+  const notes = formatLessonContext(findLessons(message));
+  const content = notes
+    ? `Notes:\n\n${notes}\n\nQuestion: ${message}`
+    : `No matching notes were found.\n\nQuestion: ${message}`;
+
+  const signal = AbortSignal.timeout(90_000);
+  let upstream = await complete(key, model, content, signal).catch(() => null);
+
+  if (!upstream || !upstream.ok) {
+    await upstream?.body?.cancel().catch(() => undefined);
+    if (upstream && RETRY_STATUSES.has(upstream.status)) {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      upstream = await complete(key, model, content, signal).catch(() => null);
+    }
+  }
+
+  if ((!upstream || !upstream.ok) && FALLBACK_MODEL !== model) {
+    await upstream?.body?.cancel().catch(() => undefined);
+    upstream = await complete(key, FALLBACK_MODEL, content, signal).catch(() => null);
+  }
+
+  if (!upstream?.ok || !upstream.body) {
+    return new Response(JSON.stringify({ error: publicError(upstream?.status) }), {
+      status: 502,
+    });
   }
 
   const encoder = new TextEncoder();
@@ -76,7 +104,9 @@ export async function POST(request: Request) {
             if (!line.startsWith('data: ')) continue;
             const raw = line.slice(6).trim();
             if (!raw || raw === '[DONE]') continue;
-            const chunk = JSON.parse(raw) as {
+
+            let chunk: {
+              error?: { message?: string };
               choices?: {
                 delta?: {
                   content?: string;
@@ -85,6 +115,18 @@ export async function POST(request: Request) {
                 };
               }[];
             };
+            try {
+              chunk = JSON.parse(raw);
+            } catch {
+              continue;
+            }
+
+            if (chunk.error) {
+              send({ error: publicError() });
+              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              return;
+            }
+
             const delta = chunk.choices?.[0]?.delta;
             const thinking = delta?.reasoning ?? delta?.reasoning_content;
             if (thinking) send({ thinking });
@@ -92,9 +134,8 @@ export async function POST(request: Request) {
           }
         }
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-      } catch (error) {
-        const text = error instanceof Error ? error.message : 'Stream failed.';
-        send({ error: text });
+      } catch {
+        send({ error: publicError() });
       } finally {
         controller.close();
       }

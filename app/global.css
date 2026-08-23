@@ -141,8 +141,52 @@ html > body[data-scroll-locked] {
     opacity var(--duration-ui) var(--ease-out);
 }
 
+.book-chat-panel[data-side='bottom'] {
+  height: min(36rem, 90dvh);
+  width: 100%;
+  max-width: none;
+}
+
 .book-chat-panel[data-slot='sheet-content'][data-ending-style] {
   transition-duration: var(--duration-press);
+}
+
+.book-chat-md > :first-child {
+  margin-top: 0;
+}
+
+.book-chat-md > :last-child {
+  margin-bottom: 0;
+}
+
+.book-chat-md p,
+.book-chat-md ul,
+.book-chat-md ol,
+.book-chat-md blockquote {
+  margin: 0 0 0.7em;
+}
+
+.book-chat-md ul,
+.book-chat-md ol {
+  padding-left: 1.15em;
+}
+
+.book-chat-md li + li {
+  margin-top: 0.25em;
+}
+
+.book-chat-md strong {
+  font-weight: 600;
+}
+
+.book-chat-md blockquote {
+  padding-left: 0.75em;
+  border-left: 1px solid color-mix(in oklab, currentColor 28%, transparent);
+}
+
+.book-chat-md a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .book-chat-trigger {

@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import type { Components } from 'react-markdown';
 import { AnimatePresence, motion, useReducedMotion, type Transition } from 'motion/react';
 import { Send } from 'lucide-react';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -36,8 +39,74 @@ function formatThoughtDuration(ms: number) {
   return `Thought for ${Math.max(1, Math.round(ms / 1000))}s`;
 }
 
+function useNarrow() {
+  const [narrow, setNarrow] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const sync = () => setNarrow(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
+
+  return narrow;
+}
+
+const markdown: Components = {
+  p: ({ children }) => <p>{children}</p>,
+  strong: ({ children }) => <strong>{children}</strong>,
+  em: ({ children }) => <em>{children}</em>,
+  ul: ({ children }) => <ul>{children}</ul>,
+  ol: ({ children }) => <ol>{children}</ol>,
+  li: ({ children }) => <li>{children}</li>,
+  blockquote: ({ children }) => <blockquote>{children}</blockquote>,
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noreferrer">
+      {children}
+    </a>
+  ),
+  h1: ({ children }) => (
+    <p>
+      <strong>{children}</strong>
+    </p>
+  ),
+  h2: ({ children }) => (
+    <p>
+      <strong>{children}</strong>
+    </p>
+  ),
+  h3: ({ children }) => (
+    <p>
+      <strong>{children}</strong>
+    </p>
+  ),
+  code: ({ children }) => <code>{children}</code>,
+};
+
+function ChatMarkdown({ children }: { children: string }) {
+  return (
+    <div className="book-chat-md">
+      <Markdown remarkPlugins={[remarkGfm]} components={markdown}>
+        {children}
+      </Markdown>
+    </div>
+  );
+}
+
+function chatErrorMessage(error: unknown) {
+  const raw = error instanceof Error ? error.message : '';
+  const lower = raw.toLowerCase();
+  if (lower.includes('say something')) return raw;
+  if (lower.includes('empty reply')) return 'No answer came back. Try that again.';
+  if (lower.includes('too many questions')) return raw;
+  if (lower.includes('not configured')) return raw;
+  return 'Could not reach the notes. Try again.';
+}
+
 export function BookChat() {
   const reduceMotion = useReducedMotion();
+  const narrow = useNarrow();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState('');
   const [pending, setPending] = useState(false);
@@ -78,17 +147,16 @@ export function BookChat() {
       const decoder = new TextDecoder();
       let buffer = '';
       let reply = '';
-      let inserted = false;
 
       const append = (chunk: string) => {
         reply += chunk;
+        if (thoughtStarted.current != null) {
+          setThoughtMs(Date.now() - thoughtStarted.current);
+          thoughtStarted.current = null;
+        }
         setMessages((current) => {
-          if (!inserted) {
-            inserted = true;
-            if (thoughtStarted.current != null) {
-              setThoughtMs(Date.now() - thoughtStarted.current);
-              thoughtStarted.current = null;
-            }
+          const existing = current.some((item) => item.id === assistantId);
+          if (!existing) {
             return [...current, { id: assistantId, role: 'assistant', content: reply }];
           }
           return current.map((item) =>
@@ -97,29 +165,37 @@ export function BookChat() {
         });
       };
 
+      const applyEvent = (line: string) => {
+        if (!line.startsWith('data: ')) return;
+        const raw = line.slice(6).trim();
+        if (!raw || raw === '[DONE]') return;
+        let payload: {
+          content?: string;
+          thinking?: string;
+          error?: string;
+        };
+        try {
+          payload = JSON.parse(raw);
+        } catch {
+          return;
+        }
+        if (payload.error) throw new Error(payload.error);
+        if (payload.content) append(payload.content);
+      };
+
       while (true) {
         const { done, value: bytes } = await reader.read();
         if (done) break;
         buffer += decoder.decode(bytes, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const raw = line.slice(6).trim();
-          if (!raw || raw === '[DONE]') continue;
-          const payload = JSON.parse(raw) as {
-            content?: string;
-            thinking?: string;
-            error?: string;
-          };
-          if (payload.error) throw new Error(payload.error);
-          if (payload.content) append(payload.content);
-        }
+        for (const line of lines) applyEvent(line);
       }
+      if (buffer) applyEvent(buffer);
 
       if (!reply) throw new Error('Empty reply from the model.');
     } catch (error) {
-      const text = error instanceof Error ? error.message : 'Could not reach the notes.';
+      const text = chatErrorMessage(error);
       setMessages((current) => [
         ...current,
         { id: crypto.randomUUID(), role: 'assistant', content: text },
@@ -139,17 +215,26 @@ export function BookChat() {
         render={
           <Button
             variant="default"
-            className="book-chat-trigger fixed right-0 z-40 rounded-none px-4 max-md:bottom-[max(1rem,env(safe-area-inset-bottom))] max-md:h-11 md:top-1/2 md:-translate-y-1/2"
+            className={cn(
+              'book-chat-trigger fixed right-0 z-40 rounded-none px-4 max-md:bottom-[max(1rem,env(safe-area-inset-bottom))] max-md:h-11 md:top-1/2 md:-translate-y-1/2',
+              open && 'max-md:hidden',
+            )}
           />
         }
       >
         Ask
       </SheetTrigger>
       <SheetContent
-        side="right"
-        className="book-chat-panel gap-0 rounded-none border-0 p-0 shadow-none max-sm:w-full sm:max-w-md"
+        side={narrow ? 'bottom' : 'right'}
+        className={cn(
+          'book-chat-panel gap-0 rounded-none border-0 p-0 shadow-none',
+          narrow ? 'h-[min(36rem,90dvh)] w-full max-w-none' : 'max-sm:w-full sm:max-w-md',
+        )}
       >
         <SheetHeader>
+          {narrow ? (
+            <div className="book-chat-handle mx-auto mb-3 h-1 w-10 bg-border" aria-hidden />
+          ) : null}
           <SheetTitle>Ask the notes</SheetTitle>
           <SheetDescription>Answers from Graham’s sentences.</SheetDescription>
         </SheetHeader>
@@ -188,13 +273,17 @@ export function BookChat() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={enter}
                         className={cn(
-                          'max-w-[90%] px-2.5 py-2 text-[15px] leading-6 font-normal whitespace-pre-wrap',
+                          'max-w-[90%] px-2.5 py-2 text-[15px] leading-6 font-normal',
                           message.role === 'user'
-                            ? 'self-end bg-primary text-primary-foreground'
+                            ? 'self-end whitespace-pre-wrap bg-primary text-primary-foreground'
                             : 'self-start bg-secondary text-secondary-foreground',
                         )}
                       >
-                        {message.content}
+                        {message.role === 'assistant' ? (
+                          <ChatMarkdown>{message.content}</ChatMarkdown>
+                        ) : (
+                          message.content
+                        )}
                       </motion.div>
                     </div>
                   );
